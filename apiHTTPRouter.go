@@ -5,10 +5,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/deepch/RTSPtoWeb/libraries"
 	"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 )
+
+// var DB *sql.DB // pastikan sudah di-setup di file init
 
 // Message resp struct
 type Message struct {
@@ -46,9 +50,99 @@ func HTTPAPIServer() {
 
 	if Storage.ServerHTTPDemo() {
 		public.LoadHTMLGlob(Storage.ServerHTTPDir() + "/templates/*")
-		public.GET("/", HTTPAPIServerIndex)
+
+		// public.LoadHTMLGlob(Storage.ServerHTTPDir() + "/templates/*.tmpl")
+		// public.StaticFS("/img", http.Dir(Storage.ServerHTTPDir()+"/templates/img"))
+
+		// public.GET("/", HTTPAPIServerIndex)
+		public.GET("/", libraries.RequireLogin(), HTTPAPIServerIndex)
 		public.GET("/pages/stream/list", HTTPAPIStreamList)
 		public.GET("/pages/stream/add", HTTPAPIAddStream)
+
+		public.GET("/login", func(c *gin.Context) {
+			c.HTML(http.StatusOK, "login.tmpl", nil)
+		})
+
+		public.POST("/login", func(c *gin.Context) {
+			username := c.PostForm("username")
+			password := c.PostForm("password")
+
+			var hashedPassword string
+			err := DB.QueryRow("SELECT password FROM users WHERE username=?", username).Scan(&hashedPassword)
+			if err != nil {
+				c.HTML(http.StatusUnauthorized, "login.tmpl", gin.H{"error": "Username atau password salah!"})
+				return
+			}
+
+			err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+			if err != nil {
+				c.HTML(http.StatusUnauthorized, "login.tmpl", gin.H{"error": "Username atau password salah!"})
+				return
+			}
+
+			libraries.SetCookieUser(c, username)
+			c.Redirect(http.StatusFound, "/")
+		})
+
+		public.GET("/logout", func(c *gin.Context) {
+			libraries.ClearCookieUser(c)
+			c.Redirect(http.StatusFound, "/login")
+		})
+
+		public.GET("/change-password", libraries.RequireLogin(), func(c *gin.Context) {
+			c.HTML(http.StatusOK, "changepassword.tmpl", nil)
+		})
+
+		public.POST("/change-password", libraries.RequireLogin(), func(c *gin.Context) {
+			username := libraries.GetCookieUser(c)
+			oldPassword := c.PostForm("old_password")
+			newPassword := c.PostForm("new_password")
+			confirmPassword := c.PostForm("confirm_password")
+
+			var hashedPassword string
+			err := DB.QueryRow("SELECT password FROM users WHERE username=?", username).Scan(&hashedPassword)
+			if err != nil {
+				c.HTML(http.StatusInternalServerError, "changepassword.tmpl", gin.H{"error": "Gagal mengambil data pengguna"})
+				return
+			}
+
+			// Cek password lama
+			err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(oldPassword))
+			if err != nil {
+				c.HTML(http.StatusBadRequest, "changepassword.tmpl", gin.H{"error": "Password lama salah"})
+				return
+			}
+
+			// Tambahan validasi: password baru sama dengan lama
+			if oldPassword == newPassword {
+				c.HTML(http.StatusBadRequest, "changepassword.tmpl", gin.H{
+					"error": "Password baru tidak boleh sama dengan password lama. Silakan gunakan password yang berbeda.",
+				})
+				return
+			}
+
+			if newPassword != confirmPassword {
+				c.HTML(http.StatusBadRequest, "changepassword.tmpl", gin.H{"error": "Konfirmasi password tidak cocok"})
+				return
+			}
+
+			// Hash password baru dan update
+			newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+			if err != nil {
+				c.HTML(http.StatusInternalServerError, "changepassword.tmpl", gin.H{"error": "Gagal mengenkripsi password baru"})
+				return
+			}
+
+			_, err = DB.Exec("UPDATE users SET password=? WHERE username=?", newHashedPassword, username)
+			if err != nil {
+				c.HTML(http.StatusInternalServerError, "changepassword.tmpl", gin.H{"error": "Gagal mengupdate password"})
+				return
+			}
+
+			c.HTML(http.StatusOK, "changepassword.tmpl", gin.H{"success": " Password berhasil diganti. Gunakan password baru saat login berikutnya!"})
+		})
+
+		// Ini bagian yang tadinya di luar if
 		public.GET("/pages/stream/edit/:uuid", HTTPAPIEditStream)
 		public.GET("/pages/player/hls/:uuid/:channel", HTTPAPIPlayHls)
 		public.GET("/pages/player/mse/:uuid/:channel", HTTPAPIPlayMse)
@@ -58,12 +152,12 @@ func HTTPAPIServer() {
 		public.GET("/pages/documentation", HTTPAPIServerDocumentation)
 		public.GET("/pages/player/all/:uuid/:channel", HTTPAPIPlayAll)
 		public.StaticFS("/static", http.Dir(Storage.ServerHTTPDir()+"/static"))
+		// log.Println("🟢 Server berjalan di http://localhost:8080")
+		// http.ListenAndServe(":8080", public)
 	}
+	// <--- penutup if dipindahkan ke sini
 
-	/*
-		Stream Control elements
-	*/
-
+	// Sekarang blok privat bisa dideklarasikan di luar
 	privat.GET("/streams", HTTPAPIServerStreams)
 	privat.POST("/stream/:uuid/add", HTTPAPIServerStreamAdd)
 	privat.POST("/stream/:uuid/edit", HTTPAPIServerStreamEdit)

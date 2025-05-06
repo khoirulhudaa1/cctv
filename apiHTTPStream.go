@@ -5,7 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//HTTPAPIServerStreams function return stream list
+// HTTPAPIServerStreams function return stream list
 func HTTPAPIServerStreams(c *gin.Context) {
 	list, err := Storage.MarshalledStreamsList()
 	if err != nil {
@@ -15,7 +15,7 @@ func HTTPAPIServerStreams(c *gin.Context) {
 	c.IndentedJSON(200, Message{Status: 1, Payload: list})
 }
 
-//HTTPAPIServerStreamsMultiControlAdd function add new stream's
+// HTTPAPIServerStreamsMultiControlAdd function add new stream's
 func HTTPAPIServerStreamsMultiControlAdd(c *gin.Context) {
 	requestLogger := log.WithFields(logrus.Fields{
 		"module": "http_stream",
@@ -60,7 +60,7 @@ func HTTPAPIServerStreamsMultiControlAdd(c *gin.Context) {
 	}
 }
 
-//HTTPAPIServerStreamsMultiControlDelete function delete stream's
+// HTTPAPIServerStreamsMultiControlDelete function delete stream's
 func HTTPAPIServerStreamsMultiControlDelete(c *gin.Context) {
 	requestLogger := log.WithFields(logrus.Fields{
 		"module": "http_stream",
@@ -105,7 +105,7 @@ func HTTPAPIServerStreamsMultiControlDelete(c *gin.Context) {
 	}
 }
 
-//HTTPAPIServerStreamAdd function add new stream
+// HTTPAPIServerStreamAdd function add new stream
 func HTTPAPIServerStreamAdd(c *gin.Context) {
 	var payload StreamST
 	err := c.BindJSON(&payload)
@@ -133,7 +133,7 @@ func HTTPAPIServerStreamAdd(c *gin.Context) {
 	c.IndentedJSON(200, Message{Status: 1, Payload: Success})
 }
 
-//HTTPAPIServerStreamEdit function edit stream
+// HTTPAPIServerStreamEdit function edit stream
 func HTTPAPIServerStreamEdit(c *gin.Context) {
 	var payload StreamST
 	err := c.BindJSON(&payload)
@@ -161,7 +161,7 @@ func HTTPAPIServerStreamEdit(c *gin.Context) {
 	c.IndentedJSON(200, Message{Status: 1, Payload: Success})
 }
 
-//HTTPAPIServerStreamDelete function delete stream
+// HTTPAPIServerStreamDelete function delete stream
 func HTTPAPIServerStreamDelete(c *gin.Context) {
 	err := Storage.StreamDelete(c.Param("uuid"))
 	if err != nil {
@@ -177,7 +177,7 @@ func HTTPAPIServerStreamDelete(c *gin.Context) {
 	c.IndentedJSON(200, Message{Status: 1, Payload: Success})
 }
 
-//HTTPAPIServerStreamDelete function reload stream
+// HTTPAPIServerStreamDelete function reload stream
 func HTTPAPIServerStreamReload(c *gin.Context) {
 	err := Storage.StreamReload(c.Param("uuid"))
 	if err != nil {
@@ -193,7 +193,7 @@ func HTTPAPIServerStreamReload(c *gin.Context) {
 	c.IndentedJSON(200, Message{Status: 1, Payload: Success})
 }
 
-//HTTPAPIServerStreamInfo function return stream info struct
+// HTTPAPIServerStreamInfo function return stream info struct
 func HTTPAPIServerStreamInfo(c *gin.Context) {
 	info, err := Storage.StreamInfo(c.Param("uuid"))
 	if err != nil {

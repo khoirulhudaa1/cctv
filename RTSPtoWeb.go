@@ -10,6 +10,11 @@ import (
 )
 
 func main() {
+	InitDB()
+
+	// InitDB()           // Koneksi DB
+	// go HTTPAPIServer() // Panggil router dari file lain
+
 	log.WithFields(logrus.Fields{
 		"module": "main",
 		"func":   "main",
