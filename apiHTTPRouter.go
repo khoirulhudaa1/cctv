@@ -19,7 +19,7 @@ type Message struct {
 	Status  int         `json:"status"`
 	Payload interface{} `json:"payload"`
 }
-
+:=
 // HTTPAPIServer start http server routes
 func HTTPAPIServer() {
 	//Set HTTP API mode
@@ -82,6 +82,97 @@ func HTTPAPIServer() {
 
 			libraries.SetCookieUser(c, username)
 			c.Redirect(http.StatusFound, "/")
+		})
+
+		public.GET("/users", libraries.RequireLogin(), func(c *gin.Context) {
+			rows, err := DB.Query("SELECT id, username FROM users")
+			if err != nil {
+				c.HTML(http.StatusInternalServerError, "users.tmpl", gin.H{"error": "Gagal ambil data"})
+				return
+			}
+			defer rows.Close()
+
+			var users []map[string]interface{}
+			for rows.Next() {
+				var id int
+				var username string
+				rows.Scan(&id, &username)
+				users = append(users, map[string]interface{}{"id": id, "username": username})
+			}
+
+			success := c.Query("success")
+			errorMsg := c.Query("error")
+
+			c.HTML(http.StatusOK, "users.tmpl", gin.H{
+				"users":   users,
+				"success": success,
+				"error":   errorMsg,
+			})
+		})
+
+		public.GET("/users/add", libraries.RequireLogin(), func(c *gin.Context) {
+			c.HTML(http.StatusOK, "adduser.tmpl", nil)
+		})
+
+		public.POST("/users/add", libraries.RequireLogin(), func(c *gin.Context) {
+			username := c.PostForm("username")
+			password := c.PostForm("password")
+			hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+			_, err := DB.Exec("INSERT INTO users(username, password) VALUES(?, ?)", username, hash)
+			if err != nil {
+				c.HTML(http.StatusBadRequest, "adduser.tmpl", gin.H{"error": "Gagal tambah user, mungkin username sudah ada"})
+				return
+			}
+			c.Redirect(http.StatusFound, "/users?success=User berhasil ditambahkan")
+
+			// c.Redirect(http.StatusFound, "/users")
+		})
+
+		public.GET("/users/edit/:id", libraries.RequireLogin(), func(c *gin.Context) {
+			id := c.Param("id")
+			var username string
+			err := DB.QueryRow("SELECT username FROM users WHERE id=?", id).Scan(&username)
+			if err != nil {
+				c.HTML(http.StatusNotFound, "edituser.tmpl", gin.H{"error": "User tidak ditemukan"})
+				return
+			}
+			c.HTML(http.StatusOK, "edituser.tmpl", gin.H{"id": id, "username": username})
+		})
+
+		public.POST("/users/edit/:id", libraries.RequireLogin(), func(c *gin.Context) {
+			id := c.Param("id")
+			username := c.PostForm("username")
+			password := c.PostForm("password")
+
+			if password != "" {
+				hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+				_, err := DB.Exec("UPDATE users SET username=?, password=? WHERE id=?", username, hash, id)
+				if err != nil {
+					c.HTML(http.StatusBadRequest, "edituser.tmpl", gin.H{"error": "Gagal update user"})
+					return
+				}
+			} else {
+				_, err := DB.Exec("UPDATE users SET username=? WHERE id=?", username, id)
+				if err != nil {
+					c.HTML(http.StatusBadRequest, "edituser.tmpl", gin.H{"error": "Gagal update user"})
+					return
+				}
+			}
+			c.Redirect(http.StatusFound, "/users?success=User berhasil Di Ubah")
+
+			// c.Redirect(http.StatusFound, "/users")
+		})
+
+		public.POST("/users/delete/:id", libraries.RequireLogin(), func(c *gin.Context) {
+			id := c.Param("id")
+			_, err := DB.Exec("DELETE FROM users WHERE id=?", id)
+			if err != nil {
+				c.HTML(http.StatusBadRequest, "users.tmpl", gin.H{"error": "Gagal hapus user"})
+				return
+			}
+			c.Redirect(http.StatusFound, "/users?success=User berhasil Di Hapus")
+
+			// c.Redirect(http.StatusFound, "/users")
 		})
 
 		public.GET("/logout", func(c *gin.Context) {

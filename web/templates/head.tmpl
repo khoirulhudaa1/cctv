@@ -60,6 +60,16 @@
                 </p>
               </a>
             </li>
+
+
+            <li class="nav-header">NAVIGATION</li>
+        <li class="nav-item">
+          <a href="/users" class="nav-link {{ if eq .page "user_management"}} active {{end}}">
+            <i class="fas fa-users nav-icon"></i>
+            <p>Manage Users</p>
+          </a>
+        </li>
+
             <li class="nav-header">NAVIGATION</li>
             <li class="nav-item ">
               <a href="/pages/stream/list" class="nav-link {{ if  (eq .page "stream_list") }}
