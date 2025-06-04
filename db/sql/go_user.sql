@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 06 Bulan Mei 2025 pada 13.31
+-- Waktu pembuatan: 04 Jun 2025 pada 12.43
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -30,6 +30,7 @@ SET time_zone = "+00:00";
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
   `username` varchar(255) NOT NULL,
+  `role` enum('admin','operator','user') NOT NULL DEFAULT 'user',
   `password` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -37,8 +38,8 @@ CREATE TABLE `users` (
 -- Dumping data untuk tabel `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `password`) VALUES
-(1, 'admin', '$2a$15$DoUdQQ9Z7jijZcXrXHAtNesFAfZjmQctfNZlej7tuKEAOarp012KW');
+INSERT INTO `users` (`id`, `username`, `role`, `password`) VALUES
+(1, 'admin', 'admin', '$2a$12$7eev0SslC.j.4qBOqHrLG.NQmoCjpwrQ2VBPy9qA/S8OtuI7IgNya');
 
 --
 -- Indexes for dumped tables

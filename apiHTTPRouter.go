@@ -1,8 +1,10 @@
 package main
 
 import (
+	"html/template"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/deepch/RTSPtoWeb/libraries"
@@ -19,7 +21,7 @@ type Message struct {
 	Status  int         `json:"status"`
 	Payload interface{} `json:"payload"`
 }
-:=
+
 // HTTPAPIServer start http server routes
 func HTTPAPIServer() {
 	//Set HTTP API mode
@@ -28,6 +30,7 @@ func HTTPAPIServer() {
 		"func":   "RTSPServer",
 		"call":   "Start",
 	}).Infoln("Server HTTP start")
+
 	var public *gin.Engine
 	if !Storage.ServerHTTPDebug() {
 		gin.SetMode(gin.ReleaseMode)
@@ -36,6 +39,15 @@ func HTTPAPIServer() {
 		gin.SetMode(gin.DebugMode)
 		public = gin.Default()
 	}
+
+	// PENTING: Tambahkan custom functions SEBELUM LoadHTMLGlob
+	funcMap := template.FuncMap{
+		"title": strings.Title,
+		"add": func(a, b int) int {
+			return a + b
+		},
+	}
+	public.SetFuncMap(funcMap)
 
 	public.Use(CrossOrigin())
 	//Add private login password protect methods
@@ -51,10 +63,6 @@ func HTTPAPIServer() {
 	if Storage.ServerHTTPDemo() {
 		public.LoadHTMLGlob(Storage.ServerHTTPDir() + "/templates/*")
 
-		// public.LoadHTMLGlob(Storage.ServerHTTPDir() + "/templates/*.tmpl")
-		// public.StaticFS("/img", http.Dir(Storage.ServerHTTPDir()+"/templates/img"))
-
-		// public.GET("/", HTTPAPIServerIndex)
 		public.GET("/", libraries.RequireLogin(), HTTPAPIServerIndex)
 		public.GET("/pages/stream/list", HTTPAPIStreamList)
 		public.GET("/pages/stream/add", HTTPAPIAddStream)
@@ -85,7 +93,7 @@ func HTTPAPIServer() {
 		})
 
 		public.GET("/users", libraries.RequireLogin(), func(c *gin.Context) {
-			rows, err := DB.Query("SELECT id, username FROM users")
+			rows, err := DB.Query("SELECT id, username, role FROM users")
 			if err != nil {
 				c.HTML(http.StatusInternalServerError, "users.tmpl", gin.H{"error": "Gagal ambil data"})
 				return
@@ -95,9 +103,13 @@ func HTTPAPIServer() {
 			var users []map[string]interface{}
 			for rows.Next() {
 				var id int
-				var username string
-				rows.Scan(&id, &username)
-				users = append(users, map[string]interface{}{"id": id, "username": username})
+				var username, role string
+				rows.Scan(&id, &username, &role)
+				users = append(users, map[string]interface{}{
+					"id":       id,
+					"username": username,
+					"role":     role,
+				})
 			}
 
 			success := c.Query("success")
@@ -117,50 +129,80 @@ func HTTPAPIServer() {
 		public.POST("/users/add", libraries.RequireLogin(), func(c *gin.Context) {
 			username := c.PostForm("username")
 			password := c.PostForm("password")
+			role := c.PostForm("role")
+
+			// Validate role
+			if role != "admin" && role != "operator" && role != "user" {
+				c.HTML(http.StatusBadRequest, "adduser.tmpl", gin.H{"error": "Role tidak valid"})
+				return
+			}
+
 			hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-			_, err := DB.Exec("INSERT INTO users(username, password) VALUES(?, ?)", username, hash)
+			_, err := DB.Exec("INSERT INTO users(username, password, role) VALUES(?, ?, ?)", username, hash, role)
 			if err != nil {
 				c.HTML(http.StatusBadRequest, "adduser.tmpl", gin.H{"error": "Gagal tambah user, mungkin username sudah ada"})
 				return
 			}
 			c.Redirect(http.StatusFound, "/users?success=User berhasil ditambahkan")
-
-			// c.Redirect(http.StatusFound, "/users")
 		})
 
 		public.GET("/users/edit/:id", libraries.RequireLogin(), func(c *gin.Context) {
 			id := c.Param("id")
-			var username string
-			err := DB.QueryRow("SELECT username FROM users WHERE id=?", id).Scan(&username)
+			var username, role string
+			err := DB.QueryRow("SELECT username, role FROM users WHERE id=?", id).Scan(&username, &role)
 			if err != nil {
 				c.HTML(http.StatusNotFound, "edituser.tmpl", gin.H{"error": "User tidak ditemukan"})
 				return
 			}
-			c.HTML(http.StatusOK, "edituser.tmpl", gin.H{"id": id, "username": username})
+			c.HTML(http.StatusOK, "edituser.tmpl", gin.H{
+				"id":       id,
+				"username": username,
+				"role":     role,
+			})
 		})
 
 		public.POST("/users/edit/:id", libraries.RequireLogin(), func(c *gin.Context) {
 			id := c.Param("id")
 			username := c.PostForm("username")
 			password := c.PostForm("password")
+			role := c.PostForm("role")
+
+			// Validate role
+			if role != "admin" && role != "operator" && role != "user" {
+				c.HTML(http.StatusBadRequest, "edituser.tmpl", gin.H{
+					"error":    "Role tidak valid",
+					"id":       id,
+					"username": username,
+					"role":     role,
+				})
+				return
+			}
 
 			if password != "" {
 				hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-				_, err := DB.Exec("UPDATE users SET username=?, password=? WHERE id=?", username, hash, id)
+				_, err := DB.Exec("UPDATE users SET username=?, password=?, role=? WHERE id=?", username, hash, role, id)
 				if err != nil {
-					c.HTML(http.StatusBadRequest, "edituser.tmpl", gin.H{"error": "Gagal update user"})
+					c.HTML(http.StatusBadRequest, "edituser.tmpl", gin.H{
+						"error":    "Gagal update user",
+						"id":       id,
+						"username": username,
+						"role":     role,
+					})
 					return
 				}
 			} else {
-				_, err := DB.Exec("UPDATE users SET username=? WHERE id=?", username, id)
+				_, err := DB.Exec("UPDATE users SET username=?, role=? WHERE id=?", username, role, id)
 				if err != nil {
-					c.HTML(http.StatusBadRequest, "edituser.tmpl", gin.H{"error": "Gagal update user"})
+					c.HTML(http.StatusBadRequest, "edituser.tmpl", gin.H{
+						"error":    "Gagal update user",
+						"id":       id,
+						"username": username,
+						"role":     role,
+					})
 					return
 				}
 			}
-			c.Redirect(http.StatusFound, "/users?success=User berhasil Di Ubah")
-
-			// c.Redirect(http.StatusFound, "/users")
+			c.Redirect(http.StatusFound, "/users?success=User berhasil diubah")
 		})
 
 		public.POST("/users/delete/:id", libraries.RequireLogin(), func(c *gin.Context) {
@@ -170,9 +212,7 @@ func HTTPAPIServer() {
 				c.HTML(http.StatusBadRequest, "users.tmpl", gin.H{"error": "Gagal hapus user"})
 				return
 			}
-			c.Redirect(http.StatusFound, "/users?success=User berhasil Di Hapus")
-
-			// c.Redirect(http.StatusFound, "/users")
+			c.Redirect(http.StatusFound, "/users?success=User berhasil dihapus")
 		})
 
 		public.GET("/logout", func(c *gin.Context) {
@@ -181,7 +221,16 @@ func HTTPAPIServer() {
 		})
 
 		public.GET("/change-password", libraries.RequireLogin(), func(c *gin.Context) {
-			c.HTML(http.StatusOK, "changepassword.tmpl", nil)
+			username := libraries.GetCookieUser(c)
+
+			// Get user role to display in readonly field
+			var role string
+			err := DB.QueryRow("SELECT role FROM users WHERE username=?", username).Scan(&role)
+			if err != nil {
+				role = "user" // default role if not found
+			}
+
+			c.HTML(http.StatusOK, "changepassword.tmpl", gin.H{"role": role})
 		})
 
 		public.POST("/change-password", libraries.RequireLogin(), func(c *gin.Context) {
@@ -190,17 +239,23 @@ func HTTPAPIServer() {
 			newPassword := c.PostForm("new_password")
 			confirmPassword := c.PostForm("confirm_password")
 
-			var hashedPassword string
-			err := DB.QueryRow("SELECT password FROM users WHERE username=?", username).Scan(&hashedPassword)
+			var hashedPassword, role string
+			err := DB.QueryRow("SELECT password, role FROM users WHERE username=?", username).Scan(&hashedPassword, &role)
 			if err != nil {
-				c.HTML(http.StatusInternalServerError, "changepassword.tmpl", gin.H{"error": "Gagal mengambil data pengguna"})
+				c.HTML(http.StatusInternalServerError, "changepassword.tmpl", gin.H{
+					"error": "Gagal mengambil data pengguna",
+					"role":  role,
+				})
 				return
 			}
 
 			// Cek password lama
 			err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(oldPassword))
 			if err != nil {
-				c.HTML(http.StatusBadRequest, "changepassword.tmpl", gin.H{"error": "Password lama salah"})
+				c.HTML(http.StatusBadRequest, "changepassword.tmpl", gin.H{
+					"error": "Password lama salah",
+					"role":  role,
+				})
 				return
 			}
 
@@ -208,29 +263,42 @@ func HTTPAPIServer() {
 			if oldPassword == newPassword {
 				c.HTML(http.StatusBadRequest, "changepassword.tmpl", gin.H{
 					"error": "Password baru tidak boleh sama dengan password lama. Silakan gunakan password yang berbeda.",
+					"role":  role,
 				})
 				return
 			}
 
 			if newPassword != confirmPassword {
-				c.HTML(http.StatusBadRequest, "changepassword.tmpl", gin.H{"error": "Konfirmasi password tidak cocok"})
+				c.HTML(http.StatusBadRequest, "changepassword.tmpl", gin.H{
+					"error": "Konfirmasi password tidak cocok",
+					"role":  role,
+				})
 				return
 			}
 
 			// Hash password baru dan update
 			newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 			if err != nil {
-				c.HTML(http.StatusInternalServerError, "changepassword.tmpl", gin.H{"error": "Gagal mengenkripsi password baru"})
+				c.HTML(http.StatusInternalServerError, "changepassword.tmpl", gin.H{
+					"error": "Gagal mengenkripsi password baru",
+					"role":  role,
+				})
 				return
 			}
 
 			_, err = DB.Exec("UPDATE users SET password=? WHERE username=?", newHashedPassword, username)
 			if err != nil {
-				c.HTML(http.StatusInternalServerError, "changepassword.tmpl", gin.H{"error": "Gagal mengupdate password"})
+				c.HTML(http.StatusInternalServerError, "changepassword.tmpl", gin.H{
+					"error": "Gagal mengupdate password",
+					"role":  role,
+				})
 				return
 			}
 
-			c.HTML(http.StatusOK, "changepassword.tmpl", gin.H{"success": " Password berhasil diganti. Gunakan password baru saat login berikutnya!"})
+			c.HTML(http.StatusOK, "changepassword.tmpl", gin.H{
+				"success": "Password berhasil diganti. Gunakan password baru saat login berikutnya!",
+				"role":    role,
+			})
 		})
 
 		// Ini bagian yang tadinya di luar if

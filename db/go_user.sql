@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 22 Bulan Mei 2025 pada 05.00
+-- Waktu pembuatan: 04 Jun 2025 pada 12.43
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -39,8 +39,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `role`, `password`) VALUES
-(1, 'admin', 'admin', '$2a$10$UDJtuepWK68ORHIRDqE0DOLPu7ZgXC0SXbpw7LzDyawcaqDSZMblW'),
-(3, 'budi', 'user', '$2a$10$dAGIyX74muFPiEA3.znK2e5Eo.tRr4ODYPqJgIR83kGPE9Tj1aXKO');
+(1, 'admin', 'admin', '$2a$12$7eev0SslC.j.4qBOqHrLG.NQmoCjpwrQ2VBPy9qA/S8OtuI7IgNya');
 
 --
 -- Indexes for dumped tables
@@ -61,7 +60,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT untuk tabel `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

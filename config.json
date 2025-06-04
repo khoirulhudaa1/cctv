@@ -6,15 +6,18 @@
     "http_dir": "web",
     "http_login": "demo",
     "http_password": "demo",
-    "http_port": ":8083",
+    "http_port": ":10000",
     "https": false,
     "https_auto_tls": false,
     "https_auto_tls_name": "",
     "https_cert": "server.crt",
     "https_key": "server.key",
     "https_port": ":443",
-    "ice_servers": ["stun:stun.l.google.com:19302"],
-    "log_level": "debug",
+    "ice_servers": [
+      "stun:stun.l.google.com:19302",
+      "stun:stun1.l.google.com:19302"
+    ],
+    "log_level": "info",
     "rtsp_port": ":5541",
     "token": {
       "backend": "http://127.0.0.1/test.php"
@@ -29,10 +32,24 @@
         "0": {
           "url": "rtmp://171.25.232.10/12d525bc9f014e209c1280bc0d46a87e",
           "debug": false,
-          "audio": true
+          "audio": true,
+          "on_demand": true,
+          "timeout": 30,
+          "retry": true,
+          "retry_delay": 5,
+          "retry_count": 10,
+          "buffer_size": 1048576,
+          "probe_size": 5000000,
+          "analyze_duration": 5000000,
+          "rtmp_timeout": 30,
+          "thread_queue_size": 1024
         }
       },
-      "name": "111111111"
+      "name": "Stream-Camera-111111111",
+      "timeout": 30,
+      "retry": true,
+      "retry_delay": 5,
+      "max_retry": 10
     }
   }
 }

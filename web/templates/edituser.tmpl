@@ -1,52 +1,215 @@
 {{define "edituser.tmpl"}}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Edit User - RTSPtoWEB</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Edit User - RTSPtoWEB</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <style>
+    /* Fade-in animation */
+    .fade-in {
+      animation: fadeIn 0.9s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(25px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Hover scale effect for buttons */
+    .btn {
+      transition: all 0.3s ease-in-out;
+    }
+    .btn:hover {
+      transform: scale(1.05);
+    }
+    /* Icon animation */
+    .btn i {
+      transition: transform 0.3s ease;
+    }
+    .btn:hover i {
+      transform: rotate(-10deg) scale(1.2);
+    }
+
+    /* Focus input effect */
+    .form-control:focus {
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    /* Custom animated alert for empty input */
+    #alert-input {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1055;
+      display: none;
+      animation: slideInRight 0.5s ease forwards;
+      box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+      border-radius: 0.375rem;
+    }
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(100%); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideOutRight {
+      from { opacity: 1; transform: translateX(0); }
+      to { opacity: 0; transform: translateX(100%); }
+    }
+  </style>
 </head>
 <body>
   <div class="container mt-5">
-    <div class="card shadow-lg border-0">
+    <div class="card shadow-lg border-0 fade-in">
       <div class="card-body">
-        <h2 class="mb-4 text-primary"><i class="fas fa-edit me-2"></i>Edit User Baru</h2>
-        
+        <h2 class="mb-4 text-primary"><i class="fas fa-edit me-2"></i>Edit User</h2>
+
         {{if .error}}
-        <div class="alert alert-danger">{{.error}}</div>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="fas fa-exclamation-triangle me-2"></i><strong>Kesalahan!</strong> {{.error}}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
         {{end}}
 
-        <form action="/users/edit/{{.id}}" method="POST">
-            <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
-                <input type="text" class="form-control" id="username" name="username" value="{{.username}}" required>
-            </div>
+        <form id="editUserForm" action="/users/edit/{{.id}}" method="POST" novalidate>
+          <div class="mb-3">
+            <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
+            <input
+              type="text"
+              class="form-control"
+              id="username"
+              name="username"
+              value="{{.username}}"
+              required
+            />
+          </div>
 
-        <div class="mb-3">
-                <label for="role" class="form-label">Role</label>
-                <select class="form-select" id="role" name="role">
-                    <option value="">-- Pilih Role --</option>
-                    <option value="admin" {{if eq .role "admin"}}selected{{end}}>Admin</option>
-                    <option value="operator" {{if eq .role "operator"}}selected{{end}}>Operator</option>
-                    <option value="user" {{if eq .role "user"}}selected{{end}}>User</option>
-                </select>
-            </div>
+          <div class="mb-3">
+            <label for="role" class="form-label">Role Saat Ini</label>
+            <select
+              class="form-select"
+              id="role"
+              name="role"
+              readonly
+              disabled
+              style="background-color: #e9ecef;"
+            >
+              <option value="{{.role}}" selected>{{.role | title}}</option>
+            </select>
+            <input type="hidden" name="role" value="{{.role}}" />
+            <small class="text-muted">Role tidak dapat diubah melalui halaman ini</small>
+          </div>
 
-            <div class="mb-3">
-                <label for="password" class="form-label">New Password (leave empty to keep current)</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password Baru <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input
+                type="password"
+                class="form-control"
+                id="password"
+                name="password"
+                placeholder="Masukkan password baru"
+                required
+              />
+              <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                <i class="fas fa-eye"></i>
+              </button>
             </div>
-            <button type="submit" class="btn btn-warning">Update User</button>
-              <a href="/users" class="btn btn-secondary">
+          </div>
+
+          <div class="d-flex justify-content-between mt-4">
+            <button type="submit" class="btn btn-warning">
+              <i class="fas fa-save me-1"></i>Update User
+            </button>
+            <a href="/users" class="btn btn-secondary">
               <i class="fas fa-arrow-left me-1"></i>Kembali ke Daftar User
             </a>
+          </div>
         </form>
       </div>
     </div>
   </div>
 
+  <!-- Animated alert for empty username or password -->
+  <div
+    id="alert-input"
+    class="alert alert-danger alert-dismissible fade show"
+    role="alert"
+  >
+    <i class="fas fa-exclamation-circle me-2"></i>
+    <strong id="alert-message">Username dan password wajib diisi dan tidak boleh kosong!</strong>
+    <button
+      type="button"
+      class="btn-close"
+      aria-label="Close"
+      onclick="closeAlert()"
+    ></button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const form = document.getElementById('editUserForm');
+    const alertBox = document.getElementById('alert-input');
+    const alertMessage = document.getElementById('alert-message');
+    const togglePasswordBtn = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+
+    // Toggle password visibility
+    togglePasswordBtn.addEventListener('click', function() {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      
+      // Toggle icon
+      const icon = this.querySelector('i');
+      if (type === 'text') {
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    });
+
+    // Form validation
+    form.addEventListener('submit', function (e) {
+      const usernameInput = document.getElementById('username').value.trim();
+      const passwordInput = document.getElementById('password').value.trim();
+      let errorMsg = '';
+
+      if (usernameInput === '' && passwordInput === '') {
+        errorMsg = 'Username dan Password wajib diisi!';
+      } else if (usernameInput === '') {
+        errorMsg = 'Username wajib diisi!';
+      } else if (passwordInput === '') {
+        errorMsg = 'Password wajib diisi!';
+      }
+
+      if (errorMsg) {
+        e.preventDefault();
+        alertMessage.textContent = errorMsg;
+        showAlert();
+        return false;
+      }
+
+      return true;
+    });
+
+    function showAlert() {
+      alertBox.style.display = 'block';
+      alertBox.style.animation = 'slideInRight 0.5s ease forwards';
+      setTimeout(() => {
+        closeAlert();
+      }, 4000);
+    }
+
+    function closeAlert() {
+      alertBox.style.animation = 'slideOutRight 0.5s ease forwards';
+      setTimeout(() => {
+        alertBox.style.display = 'none';
+      }, 500);
+    }
+  </script>
 </body>
 </html>
 {{end}}
